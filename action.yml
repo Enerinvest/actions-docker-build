@@ -1,0 +1,121 @@
+name: "docker-build"
+description: "build and push docker image"
+inputs: 
+  DOCKER_REPO_NAME:
+    required: true
+  DOCKER_REGISTRY_NAME: 
+    required: false
+    default: "315824893242"
+  AWS_REGION: 
+    required: false
+    default: "eu-west-1"    
+  AWS_ACCESS_KEY:
+    required: true
+  AWS_SECRET_KEY: 
+    required: true
+  SKIP_TEST: 
+    required: false
+    default: "false"
+  BUILD_BASE: 
+    required: false
+    default: "true"    
+outputs:
+  DOCKER_REPOSITORY: 
+    description: "repo"
+    value: "${{ steps.set_outputs.outputs.DOCKER_REPOSITORY }}"
+  TAG_REF:
+    description: "ref"
+    value: "${{ steps.set_outputs.outputs.TAG_REF }}"
+  TAG_APP:
+    description: "app"
+    value: "${{ steps.set_outputs.outputs.TAG_APP }}"
+runs:
+  using: "composite"
+  steps:
+
+    # - name: test postgres connectivity
+    #   shell: bash
+    #   #run:  docker run --rm -e PGPASSWORD=pgpass --network="host" postgres /bin/bash -c "psql -h 127.0.0.1 -U pgadmin -c 'select * FROM pg_database'"
+    #   run:  docker run --rm -e PGPASSWORD=pgpass --add-host=host.docker.internal:host-gateway postgres /bin/bash -c "psql -h host.docker.internal -U pgadmin -c 'select * FROM pg_database'"
+
+    - name: Extract branch name
+      shell: bash
+      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})" | tr '/' '_'
+      id: extract_branch
+
+    - name: Set commit info
+      shell: bash
+      run: |
+        echo TAG_REF=${GITHUB_SHA::7} >> $GITHUB_ENV      
+        echo TAG_APP=${{ steps.extract_branch.outputs.branch }} >> $GITHUB_ENV
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v1
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ inputs.AWS_ACCESS_KEY }}
+        aws-secret-access-key: ${{ inputs.AWS_SECRET_KEY }}
+        aws-region: ${{ inputs.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+      with:
+        registries: ${{ inputs.DOCKER_REGISTRY_NAME }}
+
+    - name: Set common env
+      shell: bash    
+      run: |
+        echo DOCKER_REPOSITORY=${{ steps.login-ecr.outputs.registry }}/${{ inputs.DOCKER_REPO_NAME }} >> $GITHUB_ENV        
+
+    - name: Build-base
+      shell: bash        
+      run: |
+        if [ "${{ inputs.SKIP_TEST }}" = "false" ]; then 
+          export BASE_HASH=$(cat Gemfile Gemfile.lock package*json | md5sum | cut -c1-7)
+          docker pull ${DOCKER_REPOSITORY}:base-${BASE_HASH} || true  
+          docker build --pull --target base-env --cache-from ${DOCKER_REPOSITORY}:base-${BASE_HASH} -t ${DOCKER_REPOSITORY}:base-${BASE_HASH} -t ${DOCKER_REPOSITORY}:base-latest .    
+          docker push ${DOCKER_REPOSITORY}:base-${BASE_HASH}
+          docker push ${DOCKER_REPOSITORY}:base-latest
+          export DOCKER_BASE_CACHE="--cache-from ${DOCKER_REPOSITORY}:base-${BASE_HASH}"
+        else 
+          export DOCKER_BASE_CACHE=""
+          echo "skipping base build"
+        fi
+
+    - name: Build
+      shell: bash        
+      run: |
+        docker pull ${DOCKER_REPOSITORY}:latest || true  
+        docker build ${DOCKER_BASE_CACHE} --cache-from ${DOCKER_REPOSITORY}:latest -t ${DOCKER_REPOSITORY}:${TAG_REF} -t ${DOCKER_REPOSITORY}:${TAG_REF}-pretest -t ${DOCKER_REPOSITORY}:${TAG_APP} -t ${DOCKER_REPOSITORY}:latest . 
+    
+    - name: test
+      shell: bash      
+      run: |
+        if [ "${{ inputs.SKIP_TEST }}" = "false" ]; then 
+          docker run --rm --add-host=host.docker.internal:host-gateway -e DB_CREATE=1 -e DB_MIGRATE=1 -e DB_HOST=host.docker.internal -e DB_USERNAME=pgadmin -e DB_PASSWORD=pgpass ${DOCKER_REPOSITORY}:${TAG_REF} /app/docker-test.sh
+        else 
+          echo "TEST SKIPPED!"
+        fi
+
+
+    - name: set outputs
+      id: set_outputs
+      shell: bash
+      run: |
+         echo "::set-output name=DOCKER_REPOSITORY::${DOCKER_REPOSITORY}"
+         echo "::set-output name=TAG_REF::${TAG_REF}"
+         echo "::set-output name=TAG_APP::${TAG_APP}"
+         
+    # - name: push
+    #   shell: bash      
+    #   run: |
+    #     docker push ${DOCKER_REPOSITORY}:${TAG_REF}
+    #     docker push ${DOCKER_REPOSITORY}:${TAG_APP}
+    #     docker push ${DOCKER_REPOSITORY}:latest        
+
+
