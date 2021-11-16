@@ -81,7 +81,7 @@ runs:
           docker build --pull --target base-env --cache-from ${DOCKER_REPOSITORY}:base-${BASE_HASH} -t ${DOCKER_REPOSITORY}:base-${BASE_HASH} -t ${DOCKER_REPOSITORY}:base-latest .    
           docker push ${DOCKER_REPOSITORY}:base-${BASE_HASH}
           docker push ${DOCKER_REPOSITORY}:base-latest
-          export DOCKER_BASE_CACHE="--cache-from ${DOCKER_REPOSITORY}:base-${BASE_HASH}"
+          echo DOCKER_BASE_CACHE="--cache-from ${DOCKER_REPOSITORY}:base-${BASE_HASH}" >> $GITHUB_ENV
         else 
           export DOCKER_BASE_CACHE=""
           echo "skipping base build"
