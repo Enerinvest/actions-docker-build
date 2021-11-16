@@ -1,5 +1,5 @@
 name: "docker-build"
-description: "build and push docker image"
+description: "build docker image"
 inputs: 
   DOCKER_REPO_NAME:
     required: true
@@ -75,7 +75,7 @@ runs:
     - name: Build-base
       shell: bash        
       run: |
-        if [ "${{ inputs.SKIP_TEST }}" = "false" ]; then 
+        if [ "${{ inputs.BUILD_BASE }}" = "true" ]; then 
           export BASE_HASH=$(cat Gemfile Gemfile.lock package*json | md5sum | cut -c1-7)
           docker pull ${DOCKER_REPOSITORY}:base-${BASE_HASH} || true  
           docker build --pull --target base-env --cache-from ${DOCKER_REPOSITORY}:base-${BASE_HASH} -t ${DOCKER_REPOSITORY}:base-${BASE_HASH} -t ${DOCKER_REPOSITORY}:base-latest .    
@@ -111,11 +111,11 @@ runs:
          echo "::set-output name=TAG_REF::${TAG_REF}"
          echo "::set-output name=TAG_APP::${TAG_APP}"
          
-    # - name: push
-    #   shell: bash      
-    #   run: |
-    #     docker push ${DOCKER_REPOSITORY}:${TAG_REF}
-    #     docker push ${DOCKER_REPOSITORY}:${TAG_APP}
-    #     docker push ${DOCKER_REPOSITORY}:latest        
+    - name: push
+      shell: bash      
+      run: |
+        docker push ${DOCKER_REPOSITORY}:${TAG_REF}
+        docker push ${DOCKER_REPOSITORY}:${TAG_APP}
+        docker push ${DOCKER_REPOSITORY}:latest        
 
 
