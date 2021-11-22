@@ -1,8 +1,12 @@
 name: "docker-build"
 description: "build docker image"
 inputs: 
-  DOCKER_REPO_NAME:
-    required: true
+  DOCKER_REPOSITORY:
+     required: true
+  TAG_APP:
+     required: true
+  TAG_REF:
+     required: true
   DOCKER_REGISTRY_NAME: 
     required: false
     default: "315824893242"
@@ -19,16 +23,16 @@ inputs:
   BUILD_BASE: 
     required: false
     default: "true"    
-outputs:
-  DOCKER_REPOSITORY: 
-    description: "repo"
-    value: "${{ steps.set_outputs.outputs.DOCKER_REPOSITORY }}"
-  TAG_REF:
-    description: "ref"
-    value: "${{ steps.set_outputs.outputs.TAG_REF }}"
-  TAG_APP:
-    description: "app"
-    value: "${{ steps.set_outputs.outputs.TAG_APP }}"
+# outputs:
+#   DOCKER_REPOSITORY: 
+#     description: "repo"
+#     value: "${{ steps.set_outputs.outputs.DOCKER_REPOSITORY }}"
+#   TAG_REF:
+#     description: "ref"
+#     value: "${{ steps.set_outputs.outputs.TAG_REF }}"
+#   TAG_APP:
+#     description: "app"
+#     value: "${{ steps.set_outputs.outputs.TAG_APP }}"
 runs:
   using: "composite"
   steps:
@@ -38,16 +42,16 @@ runs:
     #   #run:  docker run --rm -e PGPASSWORD=pgpass --network="host" postgres /bin/bash -c "psql -h 127.0.0.1 -U pgadmin -c 'select * FROM pg_database'"
     #   run:  docker run --rm -e PGPASSWORD=pgpass --add-host=host.docker.internal:host-gateway postgres /bin/bash -c "psql -h host.docker.internal -U pgadmin -c 'select * FROM pg_database'"
 
-    - name: Extract branch name
-      shell: bash
-      run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})" | tr '/' '_'
-      id: extract_branch
+    # - name: Extract branch name
+    #   shell: bash
+    #   run: echo "##[set-output name=branch;]$(echo ${GITHUB_REF#refs/heads/})" | tr '/' '_'
+    #   id: extract_branch
 
-    - name: Set commit info
-      shell: bash
-      run: |
-        echo TAG_REF=${GITHUB_SHA::7} >> $GITHUB_ENV      
-        echo TAG_APP=${{ steps.extract_branch.outputs.branch }} >> $GITHUB_ENV
+    # - name: Set commit info
+    #   shell: bash
+    #   run: |
+    #     echo TAG_REF=${GITHUB_SHA::7} >> $GITHUB_ENV      
+    #     echo TAG_APP=${{ steps.extract_branch.outputs.branch }} >> $GITHUB_ENV
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v1
@@ -67,10 +71,10 @@ runs:
       with:
         registries: ${{ inputs.DOCKER_REGISTRY_NAME }}
 
-    - name: Set common env
-      shell: bash    
-      run: |
-        echo DOCKER_REPOSITORY=${{ steps.login-ecr.outputs.registry }}/${{ inputs.DOCKER_REPO_NAME }} >> $GITHUB_ENV        
+    # - name: Set common env
+    #   shell: bash    
+    #   run: |
+    #     echo DOCKER_REPOSITORY=${{ steps.login-ecr.outputs.registry }}/${{ inputs.DOCKER_REPO_NAME }} >> $GITHUB_ENV        
 
     - name: Build-base
       shell: bash        
@@ -103,13 +107,13 @@ runs:
         fi
 
 
-    - name: set outputs
-      id: set_outputs
-      shell: bash
-      run: |
-         echo "::set-output name=DOCKER_REPOSITORY::${DOCKER_REPOSITORY}"
-         echo "::set-output name=TAG_REF::${TAG_REF}"
-         echo "::set-output name=TAG_APP::${TAG_APP}"
+    # - name: set outputs
+    #   id: set_outputs
+    #   shell: bash
+    #   run: |
+    #      echo "::set-output name=DOCKER_REPOSITORY::${DOCKER_REPOSITORY}"
+    #      echo "::set-output name=TAG_REF::${TAG_REF}"
+    #      echo "::set-output name=TAG_APP::${TAG_APP}"
          
     - name: push
       shell: bash      
