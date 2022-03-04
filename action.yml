@@ -58,6 +58,7 @@ runs:
 
     - name: setup docker context for buildx
       id: buildx-context
+      shell: bash       
       run: |
         docker context create builders
 
