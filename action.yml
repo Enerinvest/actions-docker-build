@@ -90,11 +90,11 @@ runs:
       run: |
         if [ "${{ inputs.BUILD_BASE }}" = "true" ]; then 
           export BASE_HASH=$(cat Gemfile Gemfile.lock package*json | md5sum | cut -c1-7)
-          docker pull ${DOCKER_REPOSITORY}:base-${BASE_HASH} || true  
-          docker build --pull --target base-env --cache-from ${DOCKER_REPOSITORY}:base-${BASE_HASH} -t ${DOCKER_REPOSITORY}:base-${BASE_HASH} -t ${DOCKER_REPOSITORY}:base-latest .    
-          docker push ${DOCKER_REPOSITORY}:base-${BASE_HASH}
-          docker push ${DOCKER_REPOSITORY}:base-latest
-          echo DOCKER_BASE_CACHE="--cache-from ${DOCKER_REPOSITORY}:base-${BASE_HASH}" >> $GITHUB_ENV
+          docker pull ${{ inputs.DOCKER_REPOSITORY }}:base-${BASE_HASH} || true  
+          docker build --pull --target base-env --cache-from ${{ inputs.DOCKER_REPOSITORY }}:base-${BASE_HASH} -t ${{ inputs.DOCKER_REPOSITORY }}:base-${BASE_HASH} -t ${{ inputs.DOCKER_REPOSITORY }}:base-latest .    
+          docker push ${{ inputs.DOCKER_REPOSITORY }}:base-${BASE_HASH}
+          docker push ${{ inputs.DOCKER_REPOSITORY }}:base-latest
+          echo DOCKER_BASE_CACHE="--cache-from ${{ inputs.DOCKER_REPOSITORY }}:base-${BASE_HASH}" >> $GITHUB_ENV
         else 
           export DOCKER_BASE_CACHE=""
           echo "skipping base build"
@@ -103,14 +103,14 @@ runs:
     - name: Build
       shell: bash        
       run: |
-        docker pull ${DOCKER_REPOSITORY}:latest || true  
-        docker build ${DOCKER_BASE_CACHE} --cache-from ${DOCKER_REPOSITORY}:latest -t ${DOCKER_REPOSITORY}:${TAG_REF} -t ${DOCKER_REPOSITORY}:${TAG_REF}-pretest -t ${DOCKER_REPOSITORY}:${TAG_APP} -t ${DOCKER_REPOSITORY}:latest . 
+        docker pull ${{ inputs.DOCKER_REPOSITORY }}:latest || true  
+        docker build ${DOCKER_BASE_CACHE} --cache-from ${{ inputs.DOCKER_REPOSITORY }}:latest -t ${{ inputs.DOCKER_REPOSITORY }}:${{ inputs.TAG_REF }} -t ${{ inputs.DOCKER_REPOSITORY }}:${{ inputs.TAG_REF }}-pretest -t ${{ inputs.DOCKER_REPOSITORY }}:${{ inputs.TAG_APP }} -t ${{ inputs.DOCKER_REPOSITORY }}:latest . 
     
     - name: test
       shell: bash      
       run: |
         if [ "${{ inputs.SKIP_TEST }}" = "false" ]; then 
-          docker run --rm --add-host=host.docker.internal:host-gateway -e DB_CREATE=1 -e DB_MIGRATE=1 -e DB_HOST=host.docker.internal -e DB_USERNAME=pgadmin -e DB_PASSWORD=pgpass ${DOCKER_REPOSITORY}:${TAG_REF} /app/docker-test.sh
+          docker run --rm --add-host=host.docker.internal:host-gateway -e DB_CREATE=1 -e DB_MIGRATE=1 -e DB_HOST=host.docker.internal -e DB_USERNAME=pgadmin -e DB_PASSWORD=pgpass ${{ inputs.DOCKER_REPOSITORY }}:${{ inputs.TAG_REF }} /app/docker-test.sh
         else 
           echo "TEST SKIPPED!"
         fi
@@ -120,15 +120,15 @@ runs:
     #   id: set_outputs
     #   shell: bash
     #   run: |
-    #      echo "::set-output name=DOCKER_REPOSITORY::${DOCKER_REPOSITORY}"
-    #      echo "::set-output name=TAG_REF::${TAG_REF}"
-    #      echo "::set-output name=TAG_APP::${TAG_APP}"
+    #      echo "::set-output name=DOCKER_REPOSITORY::${{ inputs.DOCKER_REPOSITORY }}"
+    #      echo "::set-output name=TAG_REF::${{ inputs.TAG_REF }}"
+    #      echo "::set-output name=TAG_APP::${{ inputs.TAG_APP }}"
          
     - name: push
       shell: bash      
       run: |
-        docker push ${DOCKER_REPOSITORY}:${TAG_REF}
-        docker push ${DOCKER_REPOSITORY}:${TAG_APP}
-        docker push ${DOCKER_REPOSITORY}:latest        
+        docker push ${{ inputs.DOCKER_REPOSITORY }}:${{ inputs.TAG_REF }}
+        docker push ${{ inputs.DOCKER_REPOSITORY }}:${{ inputs.TAG_APP }}
+        docker push ${{ inputs.DOCKER_REPOSITORY }}:latest        
 
 
